@@ -1,0 +1,7 @@
+cd README.md
+streamlit run app.py
+
+
+stop app:
+
+click on URL --> [CTRL] + [C]
