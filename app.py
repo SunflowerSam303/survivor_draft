@@ -1,13 +1,124 @@
 import streamlit as st
 import random
 import os
+import base64
 
 # --- Base Directory ---
-BASE_DIR = os.path.dirname(__file__)  # folder where app.py is located
+BASE_DIR = os.path.dirname(__file__)
 
 st.set_page_config(page_title="Survivor 50 Snake Draft", layout="wide")
 
-# --- Survivor Players with Age + Notes ---
+# ---------- IMAGE HELPER ----------
+def get_base64_image(path):
+    with open(path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+# ---------- SURVIVOR HERO HEADER ----------
+logo_path = os.path.join(BASE_DIR, "images", "survivor50logo.webp")
+logo_base64 = get_base64_image(logo_path)
+
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&display=swap');
+
+/* ---------- JUNGLE BACKGROUND (fixed) ---------- */
+.stApp {{
+    background-image: url("https://images.unsplash.com/photo-1501785888041-af3ef285b470");
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+}}
+
+/* Light cinematic overlay so jungle is visible */
+.stApp::before {{
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: -1;
+}}
+
+/* ---------- HEADER (no box, clean logo) ---------- */
+.survivor-header {{
+    position: relative;
+    width: 100%;
+    margin-bottom: 30px;
+}}
+
+.survivor-header img {{
+    width: 100%;
+    display: block;
+    border-radius: 0px;
+    box-shadow: none;
+}}
+
+.overlay {{
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.55));
+}}
+
+.survivor-title {{
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Cinzel', serif;
+    font-size: clamp(32px, 6vw, 64px);
+    font-weight: 800;
+    color: #ffd27a;
+    letter-spacing: 3px;
+    text-align: center;
+    animation: fireGlow 2.2s ease-in-out infinite alternate;
+}}
+
+@keyframes fireGlow {{
+    from {{ text-shadow: 0 0 10px #ff9900, 0 0 20px #ff5500; }}
+    to {{ text-shadow: 0 0 18px #ffcc00, 0 0 35px #ff2200; }}
+}}
+
+/* ---------- CONTENT PANELS (semi transparent so jungle shows) ---------- */
+div[data-testid="stVerticalBlock"] > div {{
+    background: rgba(25, 22, 18, 0.82);
+    backdrop-filter: blur(6px);
+    border-radius: 14px;
+    padding: 18px 22px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+    border: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 18px;
+    color: #f5e6c8;
+}}
+
+h1, h2, h3, label, p, span {{
+    font-family: 'Cinzel', serif;
+    color: #f5e6c8 !important;
+}}
+
+/* Buttons */
+.stButton>button {{
+    background: linear-gradient(#5a3f17, #3b2a10);
+    color: #f5e6c8;
+    border-radius: 8px;
+    border: 1px solid #2a1d0a;
+    font-weight: bold;
+}}
+
+.stSelectbox div[data-baseweb="select"] {{
+    background-color: #2b261d;
+    color: #f5e6c8;
+    border-radius: 8px;
+}}
+
+</style>
+
+<div class="survivor-header">
+    <img src="data:image/png;base64,{logo_base64}">
+    <div class="overlay"></div>
+    <div class="survivor-title">SURVIVOR 50 SNAKE DRAFT</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ---------- PLAYERS ----------
 PLAYERS = [
     {"name": "Jenna Lewis-Dougherty", "age": 48, "notes": "Borneo & All-Stars legend", "img": os.path.join(BASE_DIR, "images", "JennaLewisDougherty.webp")},
     {"name": "Colby Donaldson", "age": 51, "notes": "Australian Outback icon, challenge beast", "img": os.path.join(BASE_DIR, "images", "ColbyDonaldson.webp")},
@@ -38,50 +149,38 @@ PLAYERS = [
 ROUNDS = 4
 DRAFTER_COUNT = 6
 
-# --- Helpers ---
 def format_player(p):
     return f"{p['name']} (Age {p['age']}) — {p['notes']}"
 
 def build_snake_order(drafters):
     order = []
     for r in range(ROUNDS):
-        if r % 2 == 0:
-            order.extend(drafters)
-        else:
-            order.extend(reversed(drafters))
+        order.extend(drafters if r % 2 == 0 else reversed(drafters))
     return order
 
-# --- Session State Init ---
+# ---------- SESSION STATE ----------
 if "drafters" not in st.session_state:
     st.session_state.drafters = [f"Player {i}" for i in range(1, DRAFTER_COUNT + 1)]
-
 if "draft_started" not in st.session_state:
     st.session_state.draft_started = False
-
 if "available_players" not in st.session_state:
     st.session_state.available_players = PLAYERS.copy()
-
 if "picks" not in st.session_state:
     st.session_state.picks = {}
-
 if "turn" not in st.session_state:
     st.session_state.turn = 0
-
 if "draft_order" not in st.session_state:
     st.session_state.draft_order = []
 
-# --- Title ---
-st.title("🏝️ Survivor 50 Snake Draft")
-
-# --- Setup Drafter Names ---
+# ---------- SETUP ----------
 if not st.session_state.draft_started:
     st.header("Enter Drafter Names")
+
     for i in range(DRAFTER_COUNT):
         name = st.text_input(f"Drafter {i+1}", value=st.session_state.drafters[i], key=f"name_{i}")
         st.session_state.drafters[i] = name
 
     if st.button("🎲 Randomize Draft Order"):
-        st.session_state.drafters = st.session_state.drafters.copy()
         random.shuffle(st.session_state.drafters)
         st.rerun()
 
@@ -91,7 +190,7 @@ if not st.session_state.draft_started:
         st.session_state.draft_started = True
         st.rerun()
 
-# --- Draft Phase ---
+# ---------- DRAFT ----------
 else:
     if st.session_state.turn < len(st.session_state.draft_order):
         current = st.session_state.draft_order[st.session_state.turn]
@@ -100,20 +199,57 @@ else:
         choice = st.selectbox("Choose a Survivor player:", player_options)
 
         if st.button("Draft Player"):
-            selected_index = player_options.index(choice)
-            selected_player = st.session_state.available_players.pop(selected_index)
-            st.session_state.picks[current].append(selected_player)
+            idx = player_options.index(choice)
+            selected = st.session_state.available_players.pop(idx)
+            st.session_state.picks[current].append(selected)
             st.session_state.turn += 1
             st.rerun()
 
-    # --- Show last drafted player ---
     if st.session_state.turn > 0:
         last_drafter = st.session_state.draft_order[st.session_state.turn - 1]
         last_pick = st.session_state.picks[last_drafter][-1]
-        st.image(last_pick["img"], width=150)
-        st.caption(f"{last_pick['name']} — Age {last_pick['age']}\n{last_pick['notes']}")
+        st.markdown(f"""
+        <div style="
+            display:flex;
+            justify-content:center;
+            margin: 30px 0;
+        ">
+            <div style="
+                text-align:center;
+                background: rgba(20,18,14,0.85);
+                padding: 24px 28px;
+                border-radius: 18px;
+                box-shadow: 0 10px 35px rgba(0,0,0,0.8);
+                border: 1px solid rgba(255,255,255,0.08);
+                max-width: 720px;
+                backdrop-filter: blur(6px);
+            ">
+                <img src="data:image/webp;base64,{get_base64_image(last_pick['img'])}"
+                    style="
+                        width: 420px;
+                        border-radius: 14px;
+                        border: 6px solid #3b2a10;
+                        box-shadow:
+                            0 0 0 3px #7a5a22,
+                            0 0 35px rgba(255,140,0,0.65),
+                            inset 0 0 20px rgba(0,0,0,0.8);
+                    ">
+                <div style="
+                    margin-top:18px;
+                    font-family:'Cinzel', serif;
+                    color:#f5e6c8;
+                ">
+                    <div style="font-size:28px; font-weight:800;">
+                        {last_pick['name']}
+                    </div>
+                    <div style="font-size:18px; margin-top:6px; opacity:0.9;">
+                        Age {last_pick['age']} — {last_pick['notes']}
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # --- Undo Button ---
     if st.button("↩️ Undo Last Pick") and st.session_state.turn > 0:
         st.session_state.turn -= 1
         last_drafter = st.session_state.draft_order[st.session_state.turn]
@@ -121,7 +257,6 @@ else:
         st.session_state.available_players.append(last_pick)
         st.rerun()
 
-    # --- Draft Board ---
     st.markdown("---")
     st.header("📋 Draft Board")
     cols = st.columns(DRAFTER_COUNT)
@@ -129,10 +264,13 @@ else:
         with cols[i]:
             st.subheader(drafter)
             for pick in st.session_state.picks[drafter]:
-                st.image(pick["img"], width=100)
-                st.write(pick["name"])
+                st.markdown(f"""
+                <div style="text-align:center; margin-bottom:10px;">
+                    <img src="data:image/webp;base64,{get_base64_image(pick['img'])}" width="110">
+                    <div style="margin-top:6px; font-weight:bold;">{pick['name']}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-    # --- Remaining Players ---
     st.markdown("---")
     st.header("🧍 Available Players")
     for p in st.session_state.available_players:
